@@ -2,6 +2,7 @@ import zipfile
 import subprocess
 from rclone_python import rclone
 from rclone_python.remote_types import RemoteTypes
+<<<<<<< HEAD
 import os
 import glob
 import hashlib
@@ -71,3 +72,5 @@ def process_files():
 #(5) create folders according to (data)
 
 #(6) main_function (rclone)
+=======
+>>>>>>> 943f3104acc12239da400b4c9b45d4e6214bd2c3
