@@ -7,14 +7,14 @@ import glob
 import hashlib
 
 artifact_folder = os.environ.get("ARTIFACT_FOLDER", "./workflow-github-action")
-remote_connection = "https://grupomateus-my.sharepoint.com/personal/guilherme_macedo_grupomateus_com/Documents/Analise%Encartes%Concorrencia"
+remote_connection = "" #Give with configuration on local machine
 
 
 # 1. Name of your configured Rclone remote (e.g., set up via 'rclone config')
-#RCLONE_REMOTE_NAME = 'onedrive_remote' 
+RCLONE_REMOTE_NAME = 'OneDrive_Remote' 
 
 # 2. The *destination* folder on your OneDrive where the local folders will be uploaded
-#ONEDRIVE_DESTINATION_FOLDER = 'extracted_data'
+ONEDRIVE_DESTINATION_FOLDER = '#'
 
 #(1) process files and extract them for repository
 def process_files():
@@ -73,9 +73,11 @@ def same_files(files):
         
 #(4) select all files and upload
 def select_files(extracted_dirs):
-    for pastas in os.walk(extracted_dirs):
-        print(f"Selecionando todos as pastas {pastas}")
+    try:
+        for pastas in os.walk(extracted_dirs):
+            print(f"Selecionando todos as pastas {pastas}")
         
+        #join with rclone configuration
         try:
             os.path.join(extracted_dirs)
             command = [
@@ -88,15 +90,34 @@ def select_files(extracted_dirs):
             print(f"Colocando todos os arquivos no OneDrive")
             result = subprocess.run(command, check=True, capture_output=True, text=True)
             print(f"Upado todos as pastas para o OneDrive {result}")
+            
+            #criando as pastas de acordo com a data e supermercado
+            for data, supermercado in os.walk(extracted_dirs):
+                os.listdir(extracted_dirs)
+                print(f"Listando as pastas {extracted_dirs}")
+                
+                supermercados_name = os.walk(getattr(str(supermercado)))
+                data_str = os.walk(getattr(str(data)))
+                print(f"Extraindo datas dos diretórios")
+                
+                try:
+                    command = [
+                        'rclone',
+                        'sync'
+                        f'rclone mkdir {supermercados_name}'
+                        f'rclone mkdir {data_str}',
+                        remote_connection,
+                        '-R'
+                    ]
+                except:
+                    print("Criando as pastas no OneDrive de acordo com a data.")
         
         except subprocess.CalledProcessError as e:
             print(f"Não foi possivel executar o comando {result}")
             print(f"STDOUT: {e.stdout}")
             print(f"STDERR: {e.stderr}")
+    except:
+        print("Não foi possivel selecionar todos os arquivos.")
     
-    
-#(5) create folders according to (data)
-def create_folders():
-       
 
 #(6) main_function (rclone)
