@@ -1,123 +1,97 @@
 import zipfile
 import subprocess
 from rclone_python import rclone
-from rclone_python.remote_types import RemoteTypes
+from rclone_python.remote_types import RemoteTypes # Importação mantida, mas não utilizada na versão final corrigida.
 import os
 import glob
 import hashlib
+import sys
 
 artifact_folder = os.environ.get("ARTIFACT_FOLDER", "./workflow-github-action")
-remote_connection = "" #Give with configuration on local machine
-
-
-# 1. Name of your configured Rclone remote (e.g., set up via 'rclone config')
 RCLONE_REMOTE_NAME = 'OneDrive_Remote' 
+ONEDRIVE_DESTINATION_FOLDER = 'WorkflowUploads/'
+REMOTE_CONNECTION = f"{RCLONE_REMOTE_NAME}:{ONEDRIVE_DESTINATION_FOLDER}"
 
-# 2. The *destination* folder on your OneDrive where the local folders will be uploaded
-ONEDRIVE_DESTINATION_FOLDER = '#'
 
-#(1) process files and extract them for repository
 def process_files():
+    """Procura por arquivos .zip no artifact_folder e os extrai para o seu diretório."""
     print(f"Procurando por arquivos .zip em {artifact_folder}...")
     zip_pattern = os.path.join(artifact_folder, "**", "*.zip")
     zip_files = glob.glob(zip_pattern, recursive=True)
-    extracted_dirs = []
+    extracted_roots = [] 
 
     if not zip_files:
         print("Nenhum arquivo .zip encontrado. Verificando arquivos existentes...")
-    else:
-        print(f"Encontrados {len(zip_files)} arquivos .zip. Extraindo...")
-        for zip_path in zip_files:
-            try:
-                extract_directory = os.path.dirname(zip_path)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(extract_directory)
-                    extracted_dirs.append(extract_directory)
-                print(f"Extraído: {zip_path} -> {extract_directory}")
-            except zipfile.BadZipFile:
-                print(f"Erro: {zip_path} não é um arquivo zip válido ou está corrompido.")
-            except Exception as e:
-                print(f"Erro ao extrair {zip_path}: {e}")
-        print("Extração de Zips concluída.\n")  
+        if os.path.isdir(artifact_folder):
+            extracted_roots.append(artifact_folder)
+        return extracted_roots 
 
-#(2) Verify if the files is on path (identiticator erros)
-def files_onpath():
-    print(f"Identificando arquivos na pasta {remote_connection}...")
-    os.path.join(artifact_folder)
-    
-    if not artifact_folder:
-        print("Nenhuma pasta encontrada.")
-    else:
-        print(f"Pasta encontrada {artifact_folder}")
-        for files in os.listdir(artifact_folder):
-            try:
-                print(f"Procurando arquivos na pasta")
-                if os.path.isfile(artifact_folder): #identificando se os arquivos estão na pasta
-                    print(f"Arquivos encontrados {files}")
-            except:
-                print(f"Arquivos não encontrados na pasta {artifact_folder}")
-
-#(3) identificator of same files (identificator erros)
-def same_files(files):
-    print(f"Identificando se os arquivos são iguais na pasta {remote_connection}...")
-    
-    try:
-        for i in files(artifact_folder):
-            encode = hashlib.sha512() #encodando os arquivos com algoritmo (sha512)
-            files = i(encode)
-            hex_digest = encode.hexdigest() #pegando o sha512 de cada arquivo
-            if files == hex_digest:
-                print(f"Arquivos iguais {files}")
-    except:
-        print(f"Arquivos não são iguais {files}") 
-        
-#(4) select all files and upload
-def select_files(extracted_dirs):
-    try:
-        for pastas in os.walk(extracted_dirs):
-            print(f"Selecionando todos as pastas {pastas}")
-        
-        #join with rclone configuration
+    print(f"Encontrados {len(zip_files)} arquivos .zip. Extraindo...")
+    for zip_path in zip_files:
         try:
-            os.path.join(extracted_dirs)
-            command = [
-                'rclone',
-                'sync',
-                extracted_dirs,
-                remote_connection,
-                '-P'
-            ]
-            print(f"Colocando todos os arquivos no OneDrive")
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
-            print(f"Upado todos as pastas para o OneDrive {result}")
+            extract_directory = os.path.dirname(zip_path) 
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_directory)
+                if extract_directory not in extracted_roots:
+                    extracted_roots.append(extract_directory)
+            print(f"Extraído: {zip_path} -> {extract_directory}")
+        except zipfile.BadZipFile:
+            print(f"Erro: {zip_path} não é um arquivo zip válido ou está corrompido.")
+        except Exception as e:
+            print(f"Erro ao extrair {zip_path}: {e}")
             
-            #criando as pastas de acordo com a data e supermercado
-            for data, supermercado in os.walk(extracted_dirs):
-                os.listdir(extracted_dirs)
-                print(f"Listando as pastas {extracted_dirs}")
-                
-                supermercados_name = os.walk(getattr(str(supermercado)))
-                data_str = os.walk(getattr(str(data)))
-                print(f"Extraindo datas dos diretórios")
-                
-                try:
-                    command = [
-                        'rclone',
-                        'sync'
-                        f'rclone mkdir {supermercados_name}'
-                        f'rclone mkdir {data_str}',
-                        remote_connection,
-                        '-R'
-                    ]
-                except:
-                    print("Criando as pastas no OneDrive de acordo com a data.")
-        
+    print("Extração de Zips concluída.\n")
+    return extracted_roots
+
+def files_onpath():
+    """Verifica se a pasta de artefatos existe."""
+    if not os.path.isdir(artifact_folder):
+        print(f"A pasta {artifact_folder} não foi encontrada. Encerrando.")
+        sys.exit(1)
+    else:
+        print(f"Pasta de artefatos encontrada: {artifact_folder}")
+
+
+def select_files(local_folders_to_sync):
+    if not local_folders_to_sync:
+        print("Nenhum diretório para sincronizar. Finalizando a etapa de upload.")
+        return
+
+    print(f"Iniciando sincronização para o destino: {REMOTE_CONNECTION}\n")
+    
+    for local_path in local_folders_to_sync:
+        base_name = os.path.basename(os.path.normpath(local_path))
+        if local_path == artifact_folder or not base_name:
+            remote_destination = REMOTE_CONNECTION
+        else:
+            remote_destination = os.path.join(REMOTE_CONNECTION, base_name) 
+
+        print(f"-> Sincronizando '{local_path}' para '{remote_destination}'...")
+
+        try:
+            rclone.sync(
+                src=local_path,
+                dst=remote_destination,
+                flags=['--progress', '--track-renames'] # -P é --progress
+            )
+            print(f"SUCESSO: '{local_path}' sincronizado com sucesso.\n")
+            
         except subprocess.CalledProcessError as e:
-            print(f"Não foi possivel executar o comando {result}")
+            print(f"ERRO: Falha ao executar rclone sync para {local_path}.")
+            print(f"Comando: {' '.join(e.cmd)}")
             print(f"STDOUT: {e.stdout}")
             print(f"STDERR: {e.stderr}")
-    except:
-        print("Não foi possivel selecionar todos os arquivos.")
-    
+        except Exception as e:
+            print(f"ERRO INESPERADO: Falha ao sincronizar {local_path}. Erro: {e}")
 
-#(6) main_function (rclone)
+def main():
+    print("INÍCIO DO PROCESSO DE SINCRONIZAÇÃO RClone")
+    files_onpath()
+    
+    folders_to_sync = process_files() 
+    
+    select_files(folders_to_sync) 
+    print("--- PROCESSO DE SINCRONIZAÇÃO CONCLUÍDO ---")
+
+if __name__ == "__main__":
+    main()
