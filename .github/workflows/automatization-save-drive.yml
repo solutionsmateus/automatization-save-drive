@@ -42,6 +42,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install rclone-python 
           # Se tiver requirements.txt, use: python -m pip install -r requirements.txt
+          
+      - name: Lista todos os artifacts baixados
+        shell: pwsh
+        run: |
+          echo "Conteúdo de artifacts:"
+          # Usa a variável de ambiente
+          Get-ChildItem -Recurse ${{ env.ARTIFACT_FOLDER }} | Select-Object FullName, Length
 
       - name: Configurar RClone
         uses: AnimMouse/setup-rclone@v1
