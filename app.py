@@ -62,7 +62,7 @@ def sync_to_gdrive(local_folders):
             rclone.sync(
                 local_path,
                 remote_path,
-                flags=['--progress', '--drive-acknowledge-abuse', '--transfers=8', '--drive-chunk-size=64M', '--tpslimit=5']
+                ['--progress', '--drive-acknowledge-abuse', '--transfers=8', '--drive-chunk-size=64M', '--tpslimit=5'],
             )
             print(f"SUCESSO: {supermarket_name} atualizado.")
         except Exception as e:
