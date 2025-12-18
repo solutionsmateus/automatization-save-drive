@@ -60,8 +60,8 @@ def sync_to_gdrive(local_folders):
         try:
             # Usamos o sync para garantir que o que está no local seja igual ao remoto
             rclone.sync(
-                source=local_path,
-                dest=remote_path,
+                local_path,
+                remote_path,
                 flags=['--progress', '--drive-acknowledge-abuse']
             )
             print(f"SUCESSO: {supermarket_name} atualizado.")
