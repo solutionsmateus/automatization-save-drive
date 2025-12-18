@@ -22,33 +22,22 @@ def get_current_month():
 
 def process_files():
     artifact_folder = os.environ.get("ARTIFACT_FOLDER", "artifacts")
-    print(f"--- Procurando arquivos em: {artifact_folder} ---")
+    print(f"--- Procurando pastas em: {artifact_folder} ---")
     
-    zip_pattern = os.path.join(artifact_folder, "**", "*.zip")
-    zip_files = glob.glob(zip_pattern, recursive=True)
     extracted_roots = []
-
-    if not zip_files:
-        print("Nenhum ZIP encontrado. Verificando se há pastas diretas...")
-        # Se não houver zip, assume que os artefatos já são as pastas dos supermercados
-        for item in os.listdir(artifact_folder):
-            path = os.path.join(artifact_folder, item)
-            if os.path.isdir(path):
-                extracted_roots.append(path)
+    
+    if not os.path.isdir(artifact_folder):
+        print(f"ERRO: Pasta de artifacts '{artifact_folder}' não encontrada.")
         return extracted_roots
 
-    for zip_path in zip_files:
-        try:
-            # Extrai o zip dentro de uma pasta com o nome do zip (que deve ser o nome do supermercado)
-            extract_directory = zip_path.replace('.zip', '')
-            os.makedirs(extract_directory, exist_ok=True)
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_directory)
-                extracted_roots.append(extract_directory)
-            print(f"Extraído: {zip_path}")
-        except Exception as e:
-            print(f"Erro ao extrair {zip_path}: {e}")
-    
+    for item in os.listdir(artifact_folder):
+        path = os.path.join(artifact_folder, item)
+        if os.path.isdir(path) and not item.startswith('.'):
+            extracted_roots.append(path)
+
+    if not extracted_roots:
+        print("Aviso: Nenhuma pasta de supermercado (subdiretório) encontrada. Verifique a estrutura do artifact.")
+        
     return extracted_roots
 
 def sync_to_gdrive(local_folders):
