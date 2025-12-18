@@ -1,97 +1,93 @@
 import zipfile
 import subprocess
-from rclone_python import rclone
-from rclone_python.remote_types import RemoteTypes # Importação mantida, mas não utilizada na versão final corrigida.
 import os
 import glob
-import hashlib
 import sys
+from datetime import datetime
+from rclone_python import rclone
 
-artifact_folder = os.environ.get("ARTIFACT_FOLDER", "./workflow-github-action")
-RCLONE_REMOTE_NAME = 'OneDrive_Remote' 
-ONEDRIVE_DESTINATION_FOLDER = 'WorkflowUploads/'
-REMOTE_CONNECTION = f"{RCLONE_REMOTE_NAME}:{ONEDRIVE_DESTINATION_FOLDER}"
+# --- CONFIGURAÇÕES ---
+# O nome 'gdrive' deve ser o mesmo que você configurou no passo anterior
+RCLONE_REMOTE_NAME = 'gdrive' 
+ROOT_DESTINATION = 'Encartes - PDF'
 
+# Dicionário para traduzir o mês para Português
+MESES = {
+    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+    5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+}
+
+def get_current_month():
+    return MESES[datetime.now().month]
 
 def process_files():
-    """Procura por arquivos .zip no artifact_folder e os extrai para o seu diretório."""
-    print(f"Procurando por arquivos .zip em {artifact_folder}...")
+    artifact_folder = os.environ.get("ARTIFACT_FOLDER", "artifacts")
+    print(f"--- Procurando arquivos em: {artifact_folder} ---")
+    
     zip_pattern = os.path.join(artifact_folder, "**", "*.zip")
     zip_files = glob.glob(zip_pattern, recursive=True)
-    extracted_roots = [] 
+    extracted_roots = []
 
     if not zip_files:
-        print("Nenhum arquivo .zip encontrado. Verificando arquivos existentes...")
-        if os.path.isdir(artifact_folder):
-            extracted_roots.append(artifact_folder)
-        return extracted_roots 
+        print("Nenhum ZIP encontrado. Verificando se há pastas diretas...")
+        # Se não houver zip, assume que os artefatos já são as pastas dos supermercados
+        for item in os.listdir(artifact_folder):
+            path = os.path.join(artifact_folder, item)
+            if os.path.isdir(path):
+                extracted_roots.append(path)
+        return extracted_roots
 
-    print(f"Encontrados {len(zip_files)} arquivos .zip. Extraindo...")
     for zip_path in zip_files:
         try:
-            extract_directory = os.path.dirname(zip_path) 
+            # Extrai o zip dentro de uma pasta com o nome do zip (que deve ser o nome do supermercado)
+            extract_directory = zip_path.replace('.zip', '')
+            os.makedirs(extract_directory, exist_ok=True)
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_directory)
-                if extract_directory not in extracted_roots:
-                    extracted_roots.append(extract_directory)
-            print(f"Extraído: {zip_path} -> {extract_directory}")
-        except zipfile.BadZipFile:
-            print(f"Erro: {zip_path} não é um arquivo zip válido ou está corrompido.")
+                extracted_roots.append(extract_directory)
+            print(f"Extraído: {zip_path}")
         except Exception as e:
             print(f"Erro ao extrair {zip_path}: {e}")
-            
-    print("Extração de Zips concluída.\n")
+    
     return extracted_roots
 
-def files_onpath():
-    """Verifica se a pasta de artefatos existe."""
-    if not os.path.isdir(artifact_folder):
-        print(f"A pasta {artifact_folder} não foi encontrada. Encerrando.")
-        sys.exit(1)
-    else:
-        print(f"Pasta de artefatos encontrada: {artifact_folder}")
-
-
-def select_files(local_folders_to_sync):
-    if not local_folders_to_sync:
-        print("Nenhum diretório para sincronizar. Finalizando a etapa de upload.")
+def sync_to_gdrive(local_folders):
+    if not local_folders:
+        print("Nada para sincronizar.")
         return
 
-    print(f"Iniciando sincronização para o destino: {REMOTE_CONNECTION}\n")
+    month_folder = get_current_month()
     
-    for local_path in local_folders_to_sync:
-        base_name = os.path.basename(os.path.normpath(local_path))
-        if local_path == artifact_folder or not base_name:
-            remote_destination = REMOTE_CONNECTION
-        else:
-            remote_destination = os.path.join(REMOTE_CONNECTION, base_name) 
-
-        print(f"-> Sincronizando '{local_path}' para '{remote_destination}'...")
+    for local_path in local_folders:
+        # Pega o nome da pasta (ex: Assai Atacadista)
+        supermarket_name = os.path.basename(os.path.normpath(local_path))
+        
+        # Constrói o caminho: gdrive:Encartes - PDF/Assai Atacadista/Dezembro
+        remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{supermarket_name}/{month_folder}"
+        
+        print(f"\n>> Sincronizando: {supermarket_name}")
+        print(f">> Destino: {remote_path}")
 
         try:
+            # Usamos o sync para garantir que o que está no local seja igual ao remoto
             rclone.sync(
                 src=local_path,
-                dst=remote_destination,
-                flags=['--progress', '--track-renames'] # -P é --progress
+                dst=remote_path,
+                flags=['--progress', '--drive-acknowledge-abuse']
             )
-            print(f"SUCESSO: '{local_path}' sincronizado com sucesso.\n")
-            
-        except subprocess.CalledProcessError as e:
-            print(f"ERRO: Falha ao executar rclone sync para {local_path}.")
-            print(f"Comando: {' '.join(e.cmd)}")
-            print(f"STDOUT: {e.stdout}")
-            print(f"STDERR: {e.stderr}")
+            print(f"SUCESSO: {supermarket_name} atualizado.")
         except Exception as e:
-            print(f"ERRO INESPERADO: Falha ao sincronizar {local_path}. Erro: {e}")
+            print(f"ERRO ao sincronizar {supermarket_name}: {e}")
 
 def main():
-    print("INÍCIO DO PROCESSO DE SINCRONIZAÇÃO RClone")
-    files_onpath()
-    
-    folders_to_sync = process_files() 
-    
-    select_files(folders_to_sync) 
-    print("--- PROCESSO DE SINCRONIZAÇÃO CONCLUÍDO ---")
+    print("INÍCIO DO PROCESSO - GOOGLE DRIVE")
+    folders = process_files()
+    if not folders:
+        print("ERRO: Nenhuma pasta de supermercado encontrada para sincronizar.")
+        return
+    sync_to_gdrive(folders)
+    print("\n--- PROCESSO CONCLUÍDO ---")
 
 if __name__ == "__main__":
     main()
