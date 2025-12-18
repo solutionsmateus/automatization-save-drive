@@ -6,10 +6,9 @@ import sys
 from datetime import datetime
 from rclone_python import rclone
 
-# --- CONFIGURAÇÕES ---
-# O nome 'gdrive' deve ser o mesmo que você configurou no passo anterior
+
 RCLONE_REMOTE_NAME = 'gdrive' 
-ROOT_DESTINATION = 'Encartes - PDF'
+ROOT_DESTINATION = 'Encartes PDF'
 
 # Dicionário para traduzir o mês para Português
 MESES = {
