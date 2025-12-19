@@ -48,17 +48,14 @@ def sync_to_gdrive(local_folders):
     month_folder = get_current_month()
     
     for local_path in local_folders:
-        # Pega o nome da pasta (ex: Assai Atacadista)
         supermarket_name = os.path.basename(os.path.normpath(local_path))
         
-        # Constrói o caminho: gdrive:Encartes - PDF/Assai Atacadista/Dezembro
         remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{supermarket_name}/{month_folder}"
         
         print(f"\n>> Sincronizando: {supermarket_name}")
         print(f">> Destino: {remote_path}")
 
         try:
-            #  o sync para garantir que o que está no local seja igual ao remoto
             rclone.sync(
                 local_path,
                 remote_path,
