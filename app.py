@@ -48,11 +48,15 @@ def sync_to_gdrive(local_folders):
     month_folder = get_current_month()
     
     for local_path in local_folders:
+        now = datetime.now()
+        day_folder = now.strftime("%d-%m-%Y")
+        month_folder = now.strftime("%B-%Y")
+        
         supermarket_name = os.path.basename(os.path.normpath(local_path))
         
-        remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{supermarket_name}/{month_folder}"
+        remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{supermarket_name}/{month_folder}/{day_folder}"
         
-        print(f"\n>> Sincronizando: {supermarket_name}")
+        print(f"\n>> Sincronizando: {day_folder, supermarket_name}")
         print(f">> Destino: {remote_path}")
 
         try:
@@ -61,10 +65,11 @@ def sync_to_gdrive(local_folders):
                 remote_path,
                 ['--progress', '--drive-acknowledge-abuse', '--transfers=8', '--drive-chunk-size=64M', '--tpslimit=5'],
             )
-            print(f"SUCESSO: {supermarket_name} atualizado.")
+            print(f"SUCESSO: {supermarket_name} atualizado do dia {day_folder}")
         except Exception as e:
-            print(f"ERRO ao sincronizar {supermarket_name}: {e}")
-
+            print(f"ERRO ao sincronizar {supermarket_name}: {e} do dia {day_folder}")
+            
+        
 def main():
     print("INÍCIO DO PROCESSO - GOOGLE DRIVE")
     folders = process_files()
