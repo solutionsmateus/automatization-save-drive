@@ -49,12 +49,12 @@ def sync_to_gdrive(local_folders):
     
     for local_path in local_folders:
         now = datetime.now()
-        day_folder = now.strftime("%d-%m-%Y")
         month_folder = now.strftime("%B-%Y")
         
+        day_folder = os.path.basename(os.path.normpath(local_path))
         supermarket_name = os.path.basename(os.path.normpath(local_path))
         
-        remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{supermarket_name}/{month_folder}/{day_folder}"
+        remote_path = f"{RCLONE_REMOTE_NAME}:{ROOT_DESTINATION}/{day_folder}/{month_folder}/{supermarket_name}"
         
         print(f"\n>> Sincronizando: {day_folder, supermarket_name}")
         print(f">> Destino: {remote_path}")
